@@ -1,9 +1,9 @@
-# streamlit_app/api_client.py
 import os
 import requests
-from dotenv import load_dotenv
-from utils import get_logger
 import json
+from dotenv import load_dotenv
+
+from utils import get_logger
 
 # Load environment variables
 load_dotenv()
@@ -29,7 +29,7 @@ def safe_request(method, url, **kwargs):
     except requests.exceptions.RequestException as e:
         logger.error("❌ API request failed: %s", e)
         return {"error": f"Unexpected error: {str(e)}"}
-    
+
 
 # ---- Response handler ----
 def _handle_response(resp):
@@ -41,7 +41,6 @@ def _handle_response(resp):
         data = resp.json()
         # Unwrap 'body' if it's a string
         if isinstance(data, dict) and "body" in data and isinstance(data["body"], str):
-            import json
             try:
                 data["body"] = json.loads(data["body"])
                 # Merge inner dict if it contains 'items'
@@ -54,6 +53,7 @@ def _handle_response(resp):
         logger.error("Invalid JSON in API response.")
         return {"error": "Invalid response from backend."}
 
+
 # ---- CRUD Operations ----
 def add_birthday(name, birthday, email=""):
     payload = {"name": name, "birthday": birthday, "email": email}
@@ -63,26 +63,23 @@ def add_birthday(name, birthday, email=""):
 
 
 def get_birthdays():
-    response = requests.get(f"{API_BASE_URL}/get_birthdays")
-    try:
-        data = response.json()
-        if isinstance(data, dict) and "body" in data:
+    """Fetch all birthdays safely."""
+    url = f"{API_BASE_URL}/get_birthdays"
+    resp = safe_request("GET", url)
+    data = _handle_response(resp)
+    # Unwrap 'body' if it's a string
+    if isinstance(data, dict) and "body" in data and isinstance(data["body"], str):
+        try:
             data = json.loads(data["body"])
-        return data
-    except Exception as e:
-        return {"error": str(e)}
+        except json.JSONDecodeError:
+            pass
+
+    return data
 
 
-def edit_birthday(name, new_date):
-    payload = {"name": name, "new_birthday": new_date}
-    logger.info("✏️ Editing birthday: %s", payload)
-    url = f"{API_BASE_URL}/edit_birthday"
-    resp = safe_request("PUT", url, json=payload)
-    return _handle_response(resp)
-
-def delete_birthday(name):
-    payload = {"name": name}
-    logger.info("🗑️ Deleting birthday for %s", name)
+def delete_birthday(name, birthday):
+    """Delete a birthday safely."""
+    payload = {"name": name, "birthday": birthday}
     url = f"{API_BASE_URL}/delete_birthday"
     resp = safe_request("DELETE", url, json=payload)
     return _handle_response(resp)
